@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard — Buku Induk Siswa</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="navbar">
+    <h1 id="app-title">Buku Induk Siswa</h1>
+    <div class="nav-links">
+      <a href="dashboard.html" class="active">Dashboard</a>
+      <a href="siswa.html">Data Siswa</a>
+      <a href="kelas.html">Kelas</a>
+      <a href="pengaturan.html">Pengaturan</a>
+      <a href="#" onclick="doLogout()">Keluar</a>
+    </div>
+  </div>
+  <div class="container">
+    <p class="text-muted" id="clock"></p>
+    <div class="stat-grid" id="stats">Memuat statistik...</div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth();
+    loadBranding();
+
+    function tickClock() {
+      document.getElementById('clock').textContent =
+        new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'medium' });
+    }
+    setInterval(tickClock, 1000);
+    tickClock();
+
+    async function loadStats() {
+      const s = await apiCall('dashboardStats', {});
+      document.getElementById('stats').innerHTML = `
+        <div class="stat-card"><div class="num">${s.total_siswa}</div><div class="label">Siswa Aktif</div></div>
+        <div class="stat-card"><div class="num">${s.total_kelas}</div><div class="label">Jumlah Kelas</div></div>
+        <div class="stat-card"><div class="num">${s.per_status.lulus}</div><div class="label">Lulus</div></div>
+        <div class="stat-card"><div class="num">${s.per_status.pindah}</div><div class="label">Pindah/Keluar</div></div>
+      `;
+    }
+    loadStats();
+  </script>
+</body>
+</html>

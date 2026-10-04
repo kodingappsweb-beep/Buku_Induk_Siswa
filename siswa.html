@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Data Siswa — Buku Induk Siswa</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="navbar">
+    <h1 id="app-title">Buku Induk Siswa</h1>
+    <div class="nav-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="siswa.html" class="active">Data Siswa</a>
+      <a href="kelas.html">Kelas</a>
+      <a href="pengaturan.html">Pengaturan</a>
+      <a href="#" onclick="doLogout()">Keluar</a>
+    </div>
+  </div>
+  <div class="container">
+    <div class="toolbar">
+      <input id="search" placeholder="Cari nama/NISN/NIS..." oninput="loadSiswa()">
+      <select id="filter-kelas" onchange="loadSiswa()"><option value="">Semua Kelas</option></select>
+      <button class="btn" onclick="openForm()">+ Tambah Siswa</button>
+      <button class="btn secondary" id="print-all-btn">Cetak Kartu Semua (terfilter)</button>
+    </div>
+    <div class="card" style="overflow-x:auto">
+      <table>
+        <thead><tr><th></th><th>Nama</th><th>Kelas</th><th>NISN</th><th>Status</th><th>Aksi</th></tr></thead>
+        <tbody id="siswa-rows"><tr><td colspan="6">Memuat...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal form tambah/edit siswa -->
+  <div id="form-modal" class="modal-backdrop no-print" style="display:none">
+    <div class="modal">
+      <h3 id="form-title">Tambah Siswa</h3>
+      <input type="hidden" id="f-id">
+
+      <label>Foto</label>
+      <img id="f-foto-preview" class="photo-preview" src="">
+      <input type="file" id="f-foto-file" accept="image/*">
+
+      <div class="field-row">
+        <div><label>Nama Lengkap</label><input id="f-nama"></div>
+        <div><label>Jenis Kelamin</label>
+          <select id="f-jk"><option value="L">Laki-laki</option><option value="P">Perempuan</option></select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div><label>NISN</label><input id="f-nisn"></div>
+        <div><label>NIS</label><input id="f-nis"></div>
+      </div>
+      <div class="field-row">
+        <div><label>Tempat Lahir</label><input id="f-tempat-lahir"></div>
+        <div><label>Tanggal Lahir</label><input id="f-tanggal-lahir" type="date"></div>
+      </div>
+      <div class="field-row">
+        <div><label>Agama</label><input id="f-agama"></div>
+        <div><label>Kelas</label><select id="f-kelas"></select></div>
+      </div>
+      <label>Alamat</label><textarea id="f-alamat" rows="2"></textarea>
+      <div class="field-row">
+        <div><label>Anak ke-</label><input id="f-anak-ke" type="number"></div>
+        <div><label>Jumlah Saudara</label><input id="f-jumlah-saudara" type="number"></div>
+      </div>
+      <div class="field-row">
+        <div><label>Asal Sekolah</label><input id="f-asal-sekolah"></div>
+        <div><label>Tahun Masuk</label><input id="f-tahun-masuk"></div>
+      </div>
+      <div class="field-row">
+        <div><label>Status</label>
+          <select id="f-status">
+            <option value="aktif">Aktif</option>
+            <option value="lulus">Lulus</option>
+            <option value="pindah">Pindah/Keluar</option>
+          </select>
+        </div>
+        <div></div>
+      </div>
+
+      <hr>
+      <h4>Data Orang Tua / Wali</h4>
+      <div id="ortu-fields"></div>
+      <button class="btn small secondary" onclick="addOrtuField()">+ Tambah Orang Tua/Wali</button>
+
+      <hr>
+      <div class="field-row">
+        <div><label>Username Login (untuk kartu peserta, opsional)</label><input id="f-username"></div>
+        <div><label>Password (opsional)</label><input id="f-password"></div>
+      </div>
+      <p class="text-muted">Username/password di sini untuk keperluan kartu identitas — fitur login siswa dapat
+        ditambahkan belakangan jika diperlukan.</p>
+
+      <br>
+      <button class="btn" onclick="saveSiswa()">Simpan</button>
+      <button class="btn secondary" onclick="closeForm()">Batal</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth();
+    loadBranding();
+    let kelasList = [];
+    let currentPhotoUrl = '';
+
+    async function init() {
+      kelasList = await apiCall('listKelas', {});
+      const filterSel = document.getElementById('filter-kelas');
+      const formSel = document.getElementById('f-kelas');
+      kelasList.forEach(k => {
+        filterSel.innerHTML += `<option value="${k.id}">${escapeHtml(k.nama)}</option>`;
+        formSel.innerHTML += `<option value="${k.id}">${escapeHtml(k.nama)}</option>`;
+      });
+      loadSiswa();
+    }
+
+    async function loadSiswa() {
+      const filters = {
+        search: document.getElementById('search').value,
+        kelas_id: document.getElementById('filter-kelas').value,
+      };
+      const rows = await apiCall('listSiswa', { filters });
+      const tbody = document.getElementById('siswa-rows');
+      if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6">Tidak ada data.</td></tr>'; return; }
+      tbody.innerHTML = rows.map(s => `
+        <tr>
+          <td><img src="${s.foto_url || ''}" class="photo-preview" style="width:36px;height:44px" onerror="this.style.visibility='hidden'"></td>
+          <td>${escapeHtml(s.nama)}</td>
+          <td>${escapeHtml(s.kelas_nama || '-')}</td>
+          <td>${escapeHtml(s.nisn || '-')}</td>
+          <td><span class="badge ${s.status}">${s.status}</span></td>
+          <td>
+            <button class="btn small" onclick="openForm(${s.id})">Edit</button>
+            <a class="btn small secondary" href="cetak-biodata.html?id=${s.id}" target="_blank">Cetak</a>
+            <button class="btn small danger" onclick="removeSiswa(${s.id})">Hapus</button>
+          </td>
+        </tr>`).join('');
+
+      document.getElementById('print-all-btn').onclick = () => {
+        const ids = rows.map(r => r.id).join(',');
+        window.open('cetak-biodata.html?ids=' + ids, '_blank');
+      };
+    }
+
+    function addOrtuField(data) {
+      data = data || {};
+      const wrap = document.createElement('div');
+      wrap.className = 'card ortu-row';
+      wrap.innerHTML = `
+        <div class="field-row">
+          <div><label>Jenis</label>
+            <select class="ot-jenis">
+              <option value="ayah" ${data.jenis === 'ayah' ? 'selected' : ''}>Ayah</option>
+              <option value="ibu" ${data.jenis === 'ibu' ? 'selected' : ''}>Ibu</option>
+              <option value="wali" ${data.jenis === 'wali' ? 'selected' : ''}>Wali</option>
+            </select>
+          </div>
+          <div><label>Nama</label><input class="ot-nama" value="${escapeHtml(data.nama || '')}"></div>
+        </div>
+        <div class="field-row">
+          <div><label>Pekerjaan</label><input class="ot-pekerjaan" value="${escapeHtml(data.pekerjaan || '')}"></div>
+          <div><label>Pendidikan Terakhir</label><input class="ot-pendidikan" value="${escapeHtml(data.pendidikan || '')}"></div>
+        </div>
+        <div class="field-row">
+          <div><label>No. HP</label><input class="ot-hp" value="${escapeHtml(data.no_hp || '')}"></div>
+          <div><label>Alamat (jika beda)</label><input class="ot-alamat" value="${escapeHtml(data.alamat || '')}"></div>
+        </div>
+        <button class="btn small danger" type="button" onclick="this.parentElement.remove()">Hapus baris ini</button>`;
+      document.getElementById('ortu-fields').appendChild(wrap);
+    }
+
+    async function openForm(id) {
+      document.getElementById('form-modal').style.display = 'flex';
+      document.getElementById('ortu-fields').innerHTML = '';
+      currentPhotoUrl = '';
+      if (!id) {
+        document.getElementById('form-title').textContent = 'Tambah Siswa';
+        ['f-id','f-nama','f-nisn','f-nis','f-tempat-lahir','f-tanggal-lahir','f-agama',
+         'f-alamat','f-anak-ke','f-jumlah-saudara','f-asal-sekolah','f-tahun-masuk',
+         'f-username','f-password'].forEach(fid => document.getElementById(fid).value = '');
+        document.getElementById('f-foto-preview').src = '';
+        addOrtuField(); addOrtuField();
+        return;
+      }
+      document.getElementById('form-title').textContent = 'Edit Siswa';
+      const detail = await apiCall('getSiswaDetail', { id });
+      const s = detail.siswa;
+      document.getElementById('f-id').value = s.id;
+      document.getElementById('f-nama').value = s.nama || '';
+      document.getElementById('f-jk').value = s.jk || 'L';
+      document.getElementById('f-nisn').value = s.nisn || '';
+      document.getElementById('f-nis').value = s.nis || '';
+      document.getElementById('f-tempat-lahir').value = s.tempat_lahir || '';
+      document.getElementById('f-tanggal-lahir').value = s.tanggal_lahir || '';
+      document.getElementById('f-agama').value = s.agama || '';
+      document.getElementById('f-kelas').value = s.kelas_id || '';
+      document.getElementById('f-alamat').value = s.alamat || '';
+      document.getElementById('f-anak-ke').value = s.anak_ke || '';
+      document.getElementById('f-jumlah-saudara').value = s.jumlah_saudara || '';
+      document.getElementById('f-asal-sekolah').value = s.asal_sekolah || '';
+      document.getElementById('f-tahun-masuk').value = s.tahun_masuk || '';
+      document.getElementById('f-status').value = s.status || 'aktif';
+      document.getElementById('f-foto-preview').src = s.foto_url || '';
+      currentPhotoUrl = s.foto_url || '';
+      (detail.orang_tua || []).forEach(o => addOrtuField(o));
+      if (!(detail.orang_tua || []).length) { addOrtuField(); addOrtuField(); }
+    }
+
+    function closeForm() { document.getElementById('form-modal').style.display = 'none'; }
+
+    async function saveSiswa() {
+      const id = document.getElementById('f-id').value;
+      const nama = document.getElementById('f-nama').value.trim();
+      if (!nama) { alert('Nama wajib diisi'); return; }
+
+      const fotoFile = document.getElementById('f-foto-file').files[0];
+      let fotoUrl = currentPhotoUrl;
+      if (fotoFile) {
+        const base64 = await fileToBase64(fotoFile);
+        const up = await apiCall('uploadImage', { base64, filename: fotoFile.name, mimeType: fotoFile.type });
+        fotoUrl = up.url;
+      }
+
+      const data = {
+        nama, jk: document.getElementById('f-jk').value,
+        nisn: document.getElementById('f-nisn').value,
+        nis: document.getElementById('f-nis').value,
+        tempat_lahir: document.getElementById('f-tempat-lahir').value,
+        tanggal_lahir: document.getElementById('f-tanggal-lahir').value,
+        agama: document.getElementById('f-agama').value,
+        kelas_id: document.getElementById('f-kelas').value,
+        alamat: document.getElementById('f-alamat').value,
+        anak_ke: document.getElementById('f-anak-ke').value,
+        jumlah_saudara: document.getElementById('f-jumlah-saudara').value,
+        asal_sekolah: document.getElementById('f-asal-sekolah').value,
+        tahun_masuk: document.getElementById('f-tahun-masuk').value,
+        status: document.getElementById('f-status').value,
+        foto_url: fotoUrl,
+      };
+
+      let siswaId = id;
+      if (id) {
+        await apiCall('updateSiswa', { id, data });
+      } else {
+        const res = await apiCall('createSiswa', { data });
+        siswaId = res.id;
+      }
+
+      const ortuRows = Array.from(document.querySelectorAll('#ortu-fields .ortu-row')).map(row => ({
+        jenis: row.querySelector('.ot-jenis').value,
+        nama: row.querySelector('.ot-nama').value,
+        pekerjaan: row.querySelector('.ot-pekerjaan').value,
+        pendidikan: row.querySelector('.ot-pendidikan').value,
+        no_hp: row.querySelector('.ot-hp').value,
+        alamat: row.querySelector('.ot-alamat').value,
+      })).filter(o => o.nama.trim() !== '');
+      await apiCall('saveOrangTua', { siswa_id: siswaId, list: ortuRows });
+
+      closeForm();
+      loadSiswa();
+    }
+
+    async function removeSiswa(id) {
+      if (!confirm('Hapus data siswa ini beserta data orang tuanya? Tindakan ini tidak bisa dibatalkan.')) return;
+      await apiCall('deleteSiswa', { id });
+      loadSiswa();
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cetak Biodata Siswa</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="print-toolbar no-print">
+    <button class="btn" onclick="window.print()">Cetak / Simpan PDF</button>
+    <a class="btn secondary" href="siswa.html">Kembali</a>
+  </div>
+  <div id="sheets">Memuat...</div>
+
+  <script src="app.js"></script>
+  <script>
+    requireAuth();
+
+    function fmtTanggal(d) {
+      if (!d) return '-';
+      try {
+        const dt = new Date(d);
+        if (isNaN(dt)) return d;
+        return dt.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+      } catch (e) { return d; }
+    }
+
+    function renderSheet(detail, settings) {
+      const s = detail.siswa;
+      const ortu = detail.orang_tua || [];
+      const ortuRows = ortu.map(o => `
+        <tr><td colspan="3"><strong>${o.jenis === 'ayah' ? 'Ayah' : o.jenis === 'ibu' ? 'Ibu' : 'Wali'}</strong></td></tr>
+        <tr><td class="label">Nama</td><td class="colon">:</td><td>${escapeHtml(o.nama || '-')}</td></tr>
+        <tr><td class="label">Pekerjaan</td><td class="colon">:</td><td>${escapeHtml(o.pekerjaan || '-')}</td></tr>
+        <tr><td class="label">Pendidikan Terakhir</td><td class="colon">:</td><td>${escapeHtml(o.pendidikan || '-')}</td></tr>
+        <tr><td class="label">No. HP</td><td class="colon">:</td><td>${escapeHtml(o.no_hp || '-')}</td></tr>
+      `).join('');
+
+      return `
+        <div class="biodata-sheet">
+          <div class="biodata-kop">
+            ${settings.school_logo_url ? `<img src="${settings.school_logo_url}">` : ''}
+            <h2>${escapeHtml(settings.exam_title || 'Buku Induk Siswa')}</h2>
+            <h3>${escapeHtml(settings.school_name || '')}</h3>
+            <p>${escapeHtml(settings.school_address || '')}</p>
+          </div>
+
+          <div class="biodata-body">
+            <div class="biodata-photo">
+              <img src="${s.foto_url || ''}" onerror="this.style.visibility='hidden'">
+            </div>
+            <div class="biodata-fields">
+              <table>
+                <tr><td class="label">Nama Lengkap</td><td class="colon">:</td><td><strong>${escapeHtml(s.nama)}</strong></td></tr>
+                <tr><td class="label">NISN / NIS</td><td class="colon">:</td><td>${escapeHtml(s.nisn || '-')} / ${escapeHtml(s.nis || '-')}</td></tr>
+                <tr><td class="label">Jenis Kelamin</td><td class="colon">:</td><td>${s.jk === 'L' ? 'Laki-laki' : s.jk === 'P' ? 'Perempuan' : '-'}</td></tr>
+                <tr><td class="label">Tempat, Tanggal Lahir</td><td class="colon">:</td><td>${escapeHtml(s.tempat_lahir || '-')}, ${fmtTanggal(s.tanggal_lahir)}</td></tr>
+                <tr><td class="label">Agama</td><td class="colon">:</td><td>${escapeHtml(s.agama || '-')}</td></tr>
+                <tr><td class="label">Kelas</td><td class="colon">:</td><td>${escapeHtml(detail.kelas ? detail.kelas.nama : '-')}</td></tr>
+                <tr><td class="label">Anak ke- / Jml. Saudara</td><td class="colon">:</td><td>${escapeHtml(s.anak_ke || '-')} dari ${escapeHtml(s.jumlah_saudara || '-')} bersaudara</td></tr>
+                <tr><td class="label">Alamat</td><td class="colon">:</td><td>${escapeHtml(s.alamat || '-')}</td></tr>
+                <tr><td class="label">Asal Sekolah</td><td class="colon">:</td><td>${escapeHtml(s.asal_sekolah || '-')}</td></tr>
+                <tr><td class="label">Tahun Masuk</td><td class="colon">:</td><td>${escapeHtml(s.tahun_masuk || '-')}</td></tr>
+                <tr><td class="label">Status</td><td class="colon">:</td><td>${escapeHtml(s.status || '-')}</td></tr>
+              </table>
+            </div>
+          </div>
+
+          <div class="biodata-section-title">Data Orang Tua / Wali</div>
+          <table class="biodata-fields" style="width:100%">${ortuRows || '<tr><td>Belum ada data orang tua/wali.</td></tr>'}</table>
+
+          <div style="margin-top:40px; display:flex; justify-content:flex-end; text-align:center">
+            <div>
+              <p>${escapeHtml(settings.school_address ? settings.school_address.split(',').pop() : '')}, ${new Date().toLocaleDateString('id-ID', {day:'2-digit', month:'long', year:'numeric'})}</p>
+              <p>Kepala Sekolah,</p>
+              <br><br><br>
+              <p><strong>${escapeHtml(settings.kepala_sekolah_name || '(.........................)')}</strong><br>
+              NIP. ${escapeHtml(settings.kepala_sekolah_nip || '-')}</p>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const settings = await apiCall('getSettings', {});
+      let ids = [];
+      if (params.get('id')) ids = [params.get('id')];
+      else if (params.get('ids')) ids = params.get('ids').split(',').filter(Boolean);
+
+      if (!ids.length) {
+        document.getElementById('sheets').innerHTML = '<p class="container">Tidak ada siswa dipilih.</p>';
+        return;
+      }
+      let html = '';
+      for (const id of ids) {
+        const detail = await apiCall('getSiswaDetail', { id });
+        if (detail.error) continue;
+        html += renderSheet(detail, settings);
+      }
+      document.getElementById('sheets').innerHTML = html;
+    }
+    init();
+  </script>
+</body>
+</html>

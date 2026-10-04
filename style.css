@@ -1,0 +1,125 @@
+:root {
+  --primary: #2563eb;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --bg: #f8fafc;
+  --card-bg: #ffffff;
+  --text: #1e293b;
+  --border: #e2e8f0;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 16px;
+}
+.navbar {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.navbar h1 { font-size: 18px; margin: 0; color: var(--primary); }
+.nav-links { display: flex; gap: 6px; flex-wrap: wrap; }
+.nav-links a {
+  text-decoration: none; color: var(--text); padding: 8px 12px; border-radius: 6px; font-size: 14px;
+}
+.nav-links a.active, .nav-links a:hover { background: #eff6ff; color: var(--primary); }
+
+.btn {
+  display: inline-block; padding: 10px 16px; border-radius: 8px; border: none;
+  background: var(--primary); color: #fff; font-size: 15px; cursor: pointer; min-height: 40px;
+}
+.btn:hover { opacity: .9; }
+.btn.danger { background: var(--danger); }
+.btn.secondary { background: #64748b; }
+.btn.small { padding: 6px 10px; min-height: 32px; font-size: 13px; }
+
+.container { max-width: 1000px; margin: 0 auto; padding: 16px; }
+.card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+.login-box { max-width: 360px; margin: 60px auto; padding: 24px; }
+
+input, select, textarea {
+  width: 100%; padding: 9px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 15px; margin-bottom: 10px;
+}
+label { font-size: 13px; color: #475569; display: block; margin-bottom: 2px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 600px) { .field-row { grid-template-columns: 1fr; } }
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); }
+th { color: #64748b; font-weight: 600; }
+tr:hover { background: #f8fafc; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; color: #fff; }
+.badge.aktif { background: var(--success); }
+.badge.lulus { background: var(--primary); }
+.badge.pindah { background: #94a3b8; }
+
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.stat-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+.stat-card .num { font-size: 28px; font-weight: bold; color: var(--primary); }
+.stat-card .label { font-size: 13px; color: #64748b; }
+
+.text-muted { color: #64748b; font-size: 14px; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.toolbar input, .toolbar select { width: auto; margin-bottom: 0; }
+
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px;
+}
+.modal {
+  background: #fff; padding: 20px; border-radius: 10px; max-width: 700px; width: 100%;
+  max-height: 88vh; overflow: auto;
+}
+
+.photo-preview {
+  width: 100px; height: 120px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border);
+  background: #f1f5f9;
+}
+
+/* ================= Lembar Cetak Biodata ================= */
+.biodata-sheet {
+  background: #fff; max-width: 210mm; margin: 16px auto; padding: 15mm;
+  font-family: "Times New Roman", Times, serif; color: #111;
+}
+.biodata-kop { text-align: center; border-bottom: 3px double #111; padding-bottom: 10px; margin-bottom: 16px; }
+.biodata-kop img { height: 60px; float: left; }
+.biodata-kop h2 { margin: 0; font-size: 18px; letter-spacing: .5px; }
+.biodata-kop h3 { margin: 2px 0 0; font-size: 15px; }
+.biodata-kop p { margin: 2px 0 0; font-size: 12px; }
+
+.biodata-body { display: flex; gap: 20px; }
+.biodata-photo img {
+  width: 3cm; height: 4cm; object-fit: cover; border: 1px solid #333;
+}
+.biodata-fields { flex: 1; }
+.biodata-fields table { font-size: 14px; }
+.biodata-fields td { border: none; padding: 3px 4px; vertical-align: top; }
+.biodata-fields td.label { width: 170px; color: #333; }
+.biodata-fields td.colon { width: 14px; }
+
+.biodata-section-title {
+  font-weight: bold; margin-top: 16px; margin-bottom: 6px; font-size: 14px;
+  border-bottom: 1px solid #999; padding-bottom: 2px;
+}
+
+.print-toolbar { max-width: 210mm; margin: 12px auto; display: flex; gap: 8px; justify-content: flex-end; }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .biodata-sheet { margin: 0; box-shadow: none; }
+  @page { size: A4 portrait; margin: 12mm; }
+}

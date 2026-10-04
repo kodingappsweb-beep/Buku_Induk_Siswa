@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login — Buku Induk Siswa</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="card login-box">
+    <h2 id="app-title">Buku Induk Siswa</h2>
+    <input id="username" placeholder="Username" autocomplete="username">
+    <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+    <button class="btn" style="width:100%" onclick="doLogin()">Masuk</button>
+    <p id="login-error" style="color:#dc2626"></p>
+    <p class="text-muted">Akun admin default: <code>admin</code> / <code>admin123</code> (segera ganti setelah login pertama).</p>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    async function doLogin() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const errEl = document.getElementById('login-error');
+      errEl.textContent = '';
+      if (!username || !password) { errEl.textContent = 'Isi username dan password'; return; }
+      const data = await apiCall('login', { username, password });
+      if (data.error) { errEl.textContent = data.error; return; }
+      localStorage.setItem('bis_token', data.token);
+      localStorage.setItem('bis_role', data.role);
+      localStorage.setItem('bis_name', data.full_name);
+      window.location.href = 'dashboard.html';
+    }
+    document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+    if (localStorage.getItem('bis_token')) window.location.href = 'dashboard.html';
+    loadBranding();
+  </script>
+</body>
+</html>
