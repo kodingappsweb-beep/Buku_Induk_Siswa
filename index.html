@@ -251,7 +251,7 @@ tr:hover td{background:#fafcf9}
 'use strict';
 
 /* ============ KONFIGURASI — GANTI URL INI ============ */
-var GAS_URL = 'https://script.google.com/macros/s/AKfycby75fgGF1R5z6YKr0awWEhalXGOETtBxjqljc-zci8qH4di0Ob5NGDSTGquRUeJJZ-SyA/exec';
+var GAS_URL = 'https://script.google.com/macros/s/PASTE_DEPLOYMENT_ID_HERE/exec';
 /* ================================================== */
 
 var S = { user:null, settings:null, cache:{}, currentView:'dashboard', modalSaveFn:null };
@@ -260,10 +260,24 @@ var S = { user:null, settings:null, cache:{}, currentView:'dashboard', modalSave
 function api(action, data){
   data = data || {};
   if (S.user) data._user = S.user.username;
-  var url = GAS_URL + '?action=' + action + '&d=' + encodeURIComponent(JSON.stringify(data));
-  return fetch(url).then(function(r){ return r.json(); }).catch(function(err){
-    return {ok:false, error:'Koneksi gagal: '+err.message+'. Periksa GAS_URL & koneksi internet.'};
-  });
+  var body = JSON.stringify(data);
+  var base = GAS_URL + '?action=' + action;
+  var getFallback = function(){
+    return fetch(base + '&d=' + encodeURIComponent(body)).then(function(r){ return r.json(); }).catch(function(err){
+      return {ok:false, error:'Koneksi gagal: '+err.message+'. Periksa GAS_URL & koneksi internet.'};
+    });
+  };
+  // Payload besar (ada foto/logo base64) wajib pakai POST agar URL tidak kepanjangan
+  if (body.length > 1500) {
+    return fetch(base, {method:'POST', body: body})
+      .then(function(r){ return r.json(); })
+      .catch(function(){ return null; })
+      .then(function(res){
+        if (res && typeof res==='object' && res.ok !== undefined) return res;
+        return {ok:false, error:'Gagal kirim data (foto/logo). Pastikan Code.gs TERBARU sudah di-Deploy ulang (New deployment, bukan Save saja) di Google Apps Script.'};
+      });
+  }
+  return getFallback();
 }
 function toast(msg, isErr){
   var t = document.getElementById('toast');
@@ -403,10 +417,11 @@ function openModal(title, fields, initial, onSave, wide){
       var f = inp.files[0]; if (!f) return;
       var reader = new FileReader();
       reader.onload = function(e){
-        downscaleImage(e.target.result, f.type==='image/png'?240:240, 0.7, function(dataUrl){
+        var mime = f.type==='image/png' ? 'image/png' : 'image/jpeg';
+        downscaleImage(e.target.result, 240, 0.75, function(dataUrl){
           document.getElementById('prev_'+inp.dataset.key).innerHTML = '<img src="'+dataUrl+'">';
           inp.dataset.dataurl = dataUrl;
-        });
+        }, mime);
       };
       reader.readAsDataURL(f);
     });
@@ -417,7 +432,20 @@ function openModal(title, fields, initial, onSave, wide){
       if (el.dataset.file) { rec[el.dataset.key] = el.dataset.dataurl || (initial&&initial[el.dataset.key]) || ''; }
       else { rec[el.dataset.key] = el.value; }
     });
-    onSave(rec);
+    // Upload field berisi data: (foto) ke Google Drive dulu, ganti dengan link Drive
+    var keys = Object.keys(rec).filter(function(k){ return typeof rec[k]==='string' && rec[k].indexOf('data:')===0; });
+    var i = 0;
+    var btn = document.getElementById('modalSave');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Upload foto…';
+    function next(){
+      if (i >= keys.length) { btn.disabled=false; btn.innerHTML='<i class="ri-save-line"></i> Simpan'; onSave(rec); return; }
+      var k = keys[i++];
+      api('uploadFoto', {data: rec[k], nama: k+'_'+Date.now()}).then(function(r){
+        if (r.ok) rec[k] = r.url; else { toast('Gagal upload '+k+': '+(r.error||''), true); }
+        next();
+      });
+    }
+    next();
   };
   document.getElementById('modalOverlay').classList.add('active');
 }
@@ -429,14 +457,15 @@ document.getElementById('modalSave').addEventListener('click', function(){ if(S.
 
 function escapeHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-function downscaleImage(dataUrl, maxW, quality, cb){
+function downscaleImage(dataUrl, maxW, quality, cb, outputMime){
+  outputMime = outputMime || 'image/jpeg';
   var img = new Image();
   img.onload = function(){
     var w = img.width, h = img.height;
     if (w > maxW) { h = Math.round(h*maxW/w); w = maxW; }
     var canvas = document.createElement('canvas'); canvas.width=w; canvas.height=h;
     canvas.getContext('2d').drawImage(img,0,0,w,h);
-    cb(canvas.toDataURL('image/jpeg', quality));
+    cb(canvas.toDataURL(outputMime, quality));
   };
   img.src = dataUrl;
 }
@@ -874,23 +903,36 @@ VIEWS.pengaturan = function(c){
       var f = this.files[0]; if(!f) return;
       var reader = new FileReader();
       reader.onload = function(e){
-        downscaleImage(e.target.result, 200, 0.8, function(d){ logoData = d; document.getElementById('prevLogo').innerHTML='<img src="'+d+'">'; });
+        var mime = f.type==='image/png' ? 'image/png' : 'image/jpeg';
+        downscaleImage(e.target.result, 200, 0.85, function(d){ logoData = d; document.getElementById('prevLogo').innerHTML='<img src="'+d+'">'; }, mime);
       };
       reader.readAsDataURL(f);
     });
     document.getElementById('saveSet').addEventListener('click', function(){
-      var data = {
-        app_title: document.getElementById('setAppTitle').value,
-        school_name: document.getElementById('setSchool').value,
-        school_npsn: document.getElementById('setNpsn').value,
-        school_address: document.getElementById('setAddr').value,
-        active_ta_id: document.getElementById('setTa').value,
-        logo: logoData
-      };
-      api('saveSettings', data).then(function(r){
-        if(r.ok){ S.settings = Object.assign(S.settings, data); toast('Pengaturan tersimpan'); buildSidebar(); document.title = data.app_title; }
-        else toast(r.error,true);
-      });
+      var btn = this; btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Menyimpan…';
+      function doSave(logoUrl){
+        var data = {
+          app_title: document.getElementById('setAppTitle').value,
+          school_name: document.getElementById('setSchool').value,
+          school_npsn: document.getElementById('setNpsn').value,
+          school_address: document.getElementById('setAddr').value,
+          active_ta_id: document.getElementById('setTa').value,
+          logo: logoUrl
+        };
+        api('saveSettings', data).then(function(r){
+          btn.disabled = false; btn.innerHTML = '<i class="ri-save-line"></i> Simpan Pengaturan';
+          if(r.ok){ S.settings = Object.assign(S.settings, data); toast('Pengaturan tersimpan'); buildSidebar(); document.title = data.app_title; }
+          else toast(r.error,true);
+        });
+      }
+      // Jika logo baru (masih data: URL), upload ke Drive dulu
+      if (logoData && logoData.indexOf('data:')===0) {
+        api('uploadFoto', {data: logoData, nama:'logo_'+Date.now()}).then(function(r){
+          if (r.ok) doSave(r.url); else { toast('Gagal upload logo: '+(r.error||''), true); btn.disabled=false; btn.innerHTML='<i class="ri-save-line"></i> Simpan Pengaturan'; }
+        });
+      } else {
+        doSave(logoData); // sudah berupa link Drive (atau kosong)
+      }
     });
     document.getElementById('addUser').onclick = function(){
       openModal('Tambah Pengguna',[
