@@ -1,6 +1,6 @@
 // app.js — wrapper API ke Web App Google Apps Script + helper auth.
 // GANTI nilai ini dengan URL Web App Anda setelah deploy (diakhiri /exec).
-const API_BASE_URL = "PASTE_URL_WEB_APP_GAS_DI_SINI";
+const API_BASE_URL = "https://script.google.com/macros/s/AKfycbw3o33l-RCPQv1xLCFlV79IWjKdvbcu65_jSYbaTTy3UaBeRGJaW2rj28h_DkAHCiXWhA/exec";
 
 // -------------------------------------------------------------------- API --
 // POST dikirim dengan Content-Type: text/plain supaya browser TIDAK mengirim
