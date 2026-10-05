@@ -86,6 +86,10 @@
         <label class="block text-xs font-semibold text-slate-600 mb-1">Password</label>
         <input id="loginPass" type="password" placeholder="password" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" onkeydown="if(event.key==='Enter')doLogin()">
       </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">URL Google Apps Script <span class="text-slate-400 font-normal">(untuk sinkronisasi cloud — cukup diisi sekali)</span></label>
+        <input id="loginGasUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" oninput="if(this.value.trim()){localStorage.setItem('sibis_gasurl',this.value.trim());}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-mono">
+      </div>
       <button id="loginBtn" onclick="doLogin()" class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg transition flex items-center justify-center gap-2">
         <i class="fa-solid fa-right-to-bracket"></i> Masuk
       </button>
@@ -142,7 +146,7 @@ let studentDb=[], guruDb=[], kelasDb=[], mapelDb=[], gradeDb={}, parameterDb={},
 // KONFIGURASI BACKEND — Tempel URL Web App Google Apps Script di bawah ini
 // agar permanen (tidak perlu diisi saat login). Kosongkan untuk mode lokal.
 // Contoh: "https://script.google.com/macros/s/AKfycbxXXXXXXX/exec"
-const EMBEDDED_GAS_URL = "https://script.google.com/macros/s/AKfycbxn3S9w94XGOs1C3vQXZs3qA-w4Khm3rs-Dh7sGWtTHGVbNRueJx5jRUw_S19JO4xCo/exec"; // <===== ISI URL GAS DI SINI
+const EMBEDDED_GAS_URL = ""; // <===== ISI URL GAS DI SINI
 // ============================================================
 let GAS_URL=EMBEDDED_GAS_URL, currentMenu='dashboard', syncTimer=null, syncState='idle', currentUser=null;
 const LS_KEY='sibis_v3_data', LS_GAS='sibis_gas_url';
@@ -184,7 +188,8 @@ async function doLogin(){
     const u=document.getElementById('loginUser').value.trim();
     const p=document.getElementById('loginPass').value;
     if(!u||!p){toast('Username dan password wajib diisi.');if(btn){btn.disabled=false;btn.innerHTML=btnHTML;}return;}
-    GAS_URL=EMBEDDED_GAS_URL;
+    GAS_URL=EMBEDDED_GAS_URL || (document.getElementById('loginGasUrl')||{}).value.trim() || localStorage.getItem('sibis_gasurl') || '';
+    if(GAS_URL) localStorage.setItem('sibis_gasurl', GAS_URL);
     await loadData();
     const user=(parameterDb.users||[]).find(x=>x.username===u && x.password===p);
     if(!user){toast('Username atau password salah.');if(btn){btn.disabled=false;btn.innerHTML=btnHTML;}return;}
@@ -210,7 +215,7 @@ function masukApp(){
   try{localStorage.setItem('sibis_session','1');localStorage.setItem('sibis_auth','1');localStorage.setItem('sibis_user',JSON.stringify(currentUser||{}));}catch(e){}try{if(location.hash.indexOf('sibis=1')<0)location.hash='sibis=1';}catch(e){}try{document.cookie='sibis_session=1;path=/;max-age=86400';document.cookie='sibis_user='+encodeURIComponent(JSON.stringify(currentUser||{}))+';path=/;max-age=86400';}catch(e){}try{window.name='sibis_session=1';}catch(e){}try{if(location.hash.indexOf('sibis=1')<0)location.hash='sibis=1';}catch(e){}
 }
 async function autoLogin(){
-  GAS_URL=EMBEDDED_GAS_URL;
+  GAS_URL=EMBEDDED_GAS_URL || localStorage.getItem('sibis_gasurl') || '';
   try{currentUser=JSON.parse(localStorage.getItem('sibis_user')||'null');}catch(e){currentUser=null;}if(!currentUser){try{const m=document.cookie.match(/sibis_user=([^;]+)/);if(m)currentUser=JSON.parse(decodeURIComponent(m[1]));}catch(e){}}if(!currentUser){currentUser=(parameterDb.users&&parameterDb.users[0])||{username:'admin',nama:'Admin'};}
   try{await loadData();}catch(e){console.warn('autoLogin loadData gagal:',e);}
   try{masukApp();}catch(e){console.error(e);}
@@ -1235,8 +1240,11 @@ function cetakKartuGuru(id){
   try{const id=localStorage.getItem('sibis_id');if(id)terapkanIdentitasLogin(JSON.parse(id));}catch(e){}
   // Fallback: parse data besar
   try{const raw=localStorage.getItem(LS_KEY);if(raw)terapkanIdentitasLogin((JSON.parse(raw).parameter&&JSON.parse(raw).parameter.sekolah)||{});}catch(e){}
-  // Fallback: ambil dari server (async)
-  if(EMBEDDED_GAS_URL){fetch(EMBEDDED_GAS_URL,{method:'GET'}).then(r=>r.json()).then(d=>{terapkanIdentitasLogin((d.parameter&&d.parameter.sekolah)||{});try{localStorage.setItem('sibis_id',JSON.stringify(d.parameter.sekolah||{}));}catch(e){}}).catch(()=>{});}
+  // Pre-fill URL GAS di form login (dari localStorage / embedded)
+  try{const g=document.getElementById('loginGasUrl');if(g)g.value=localStorage.getItem('sibis_gasurl')||EMBEDDED_GAS_URL||'';}catch(e){}
+  // Ambil branding terbaru dari server (jika URL GAS tersedia — embedded atau pernah diisi di login)
+  const gasBoot=EMBEDDED_GAS_URL || localStorage.getItem('sibis_gasurl') || '';
+  if(gasBoot){fetch(gasBoot+(gasBoot.indexOf('?')>=0?'&':'?')+'t='+Date.now(),{method:'GET'}).then(r=>r.json()).then(d=>{const sk=(d.parameter&&d.parameter.sekolah)||{};terapkanIdentitasLogin(sk);try{localStorage.setItem('sibis_id',JSON.stringify(sk));}catch(e){}}).catch(()=>{});}
   // Retry
   setTimeout(()=>{try{const id=localStorage.getItem('sibis_id');if(id)terapkanIdentitasLogin(JSON.parse(id));}catch(e){}},800);
   // Cek session — JIKA ADA, LANGSUNG tampilkan app (tidak menunggu loadData)
