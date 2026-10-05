@@ -89,7 +89,7 @@
       <button id="loginBtn" onclick="doLogin()" class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg transition flex items-center justify-center gap-2">
         <i class="fa-solid fa-right-to-bracket"></i> Masuk
       </button>
-      <p class="text-xs text-slate-400 text-center">Default: <b>admin</b> / <b>admin123</b> · kelola user di menu Pengaturan.</p>
+      <p class="text-xs text-slate-400 text-center">Default: <b>admin</b> / <b>admin123</b></p><p class="text-[10px] text-slate-300 text-center mt-1">SI-BIS v3.1d</p>
     </div>
   </div>
 </div>
@@ -189,6 +189,11 @@ async function doLogin(){
     const user=(parameterDb.users||[]).find(x=>x.username===u && x.password===p);
     if(!user){toast('Username atau password salah.');if(btn){btn.disabled=false;btn.innerHTML=btnHTML;}return;}
     currentUser=user;
+    // Set session marker LANGSUNG (paling andal) agar refresh tidak kembali ke login
+    try{localStorage.setItem('sibis_auth','1');localStorage.setItem('sibis_session','1');}catch(e){}
+    try{document.cookie='sibis_session=1;path=/;max-age=86400';}catch(e){}
+    try{window.name='sibis_session=1';}catch(e){}
+    try{if(location.hash.indexOf('sibis=1')<0)location.hash='sibis=1';}catch(e){}
     masukApp();
   }catch(e){
     console.error(e);toast('Gagal masuk: '+String(e.message||e));
@@ -202,7 +207,7 @@ function masukApp(){
   document.getElementById('app').classList.add('flex');
   buildMenu();renderAll();setSync('Tersimpan');
   const su=document.getElementById('sideUser');if(su)su.textContent=(currentUser?currentUser.nama||currentUser.username:'');
-  try{localStorage.setItem('sibis_session','1');localStorage.setItem('sibis_auth','1');localStorage.setItem('sibis_user',JSON.stringify(currentUser||{}));}catch(e){}try{document.cookie='sibis_session=1;path=/;max-age=86400';document.cookie='sibis_user='+encodeURIComponent(JSON.stringify(currentUser||{}))+';path=/;max-age=86400';}catch(e){}try{window.name='sibis_session=1';}catch(e){}try{if(location.hash.indexOf('sibis=1')<0)location.hash='sibis=1';}catch(e){}
+  try{localStorage.setItem('sibis_session','1');localStorage.setItem('sibis_auth','1');localStorage.setItem('sibis_user',JSON.stringify(currentUser||{}));}catch(e){}try{if(location.hash.indexOf('sibis=1')<0)location.hash='sibis=1';}catch(e){}try{document.cookie='sibis_session=1;path=/;max-age=86400';document.cookie='sibis_user='+encodeURIComponent(JSON.stringify(currentUser||{}))+';path=/;max-age=86400';}catch(e){}try{window.name='sibis_session=1';}catch(e){}try{if(location.hash.indexOf('sibis=1')<0)location.hash='sibis=1';}catch(e){}
 }
 async function autoLogin(){
   GAS_URL=EMBEDDED_GAS_URL;
