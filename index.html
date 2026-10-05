@@ -202,7 +202,7 @@ function masukApp(){
   document.getElementById('app').classList.add('flex');
   buildMenu();renderAll();setSync('Tersimpan');
   const su=document.getElementById('sideUser');if(su)su.textContent=(currentUser?currentUser.nama||currentUser.username:'');
-  try{localStorage.setItem('sibis_session','1');localStorage.setItem('sibis_user',JSON.stringify(currentUser||{}));}catch(e){}try{document.cookie='sibis_session=1;path=/;max-age=86400';document.cookie='sibis_user='+encodeURIComponent(JSON.stringify(currentUser||{}))+';path=/;max-age=86400';}catch(e){}try{window.name='sibis_session=1';}catch(e){}try{if(location.hash.indexOf('sibis=1')<0)location.hash='sibis=1';}catch(e){}
+  try{localStorage.setItem('sibis_session','1');localStorage.setItem('sibis_auth','1');localStorage.setItem('sibis_user',JSON.stringify(currentUser||{}));}catch(e){}try{document.cookie='sibis_session=1;path=/;max-age=86400';document.cookie='sibis_user='+encodeURIComponent(JSON.stringify(currentUser||{}))+';path=/;max-age=86400';}catch(e){}try{window.name='sibis_session=1';}catch(e){}try{if(location.hash.indexOf('sibis=1')<0)location.hash='sibis=1';}catch(e){}
 }
 async function autoLogin(){
   GAS_URL=EMBEDDED_GAS_URL;
@@ -210,7 +210,7 @@ async function autoLogin(){
   try{await loadData();}catch(e){console.warn('autoLogin loadData gagal:',e);}
   try{masukApp();}catch(e){console.error(e);}
 }
-function logout(){try{localStorage.removeItem('sibis_session');localStorage.removeItem('sibis_user');}catch(e){}try{document.cookie='sibis_session=;path=/;max-age=0';document.cookie='sibis_user=;path=/;max-age=0';}catch(e){}try{window.name='';}catch(e){}try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}if(confirm('Keluar dari aplikasi? Data sudah tersimpan otomatis.'))location.reload();}
+function logout(){try{localStorage.removeItem('sibis_session');localStorage.removeItem('sibis_auth');localStorage.removeItem('sibis_user');}catch(e){}try{document.cookie='sibis_session=;path=/;max-age=0';document.cookie='sibis_user=;path=/;max-age=0';}catch(e){}try{window.name='';}catch(e){}try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}if(confirm('Keluar dari aplikasi? Data sudah tersimpan otomatis.'))location.reload();}
 
 async function loadData(){
   // default parameter
@@ -265,6 +265,9 @@ function terapkanTema(){
   });
   document.getElementById('loginAppName').textContent=(parameterDb.sekolah&&parameterDb.sekolah.namaAplikasi)||'SI-BIS';
   document.getElementById('sideAppName').textContent=(parameterDb.sekolah&&parameterDb.sekolah.namaAplikasi)||'SI-BIS';
+  const sub=document.getElementById('loginSubtitle');if(sub){const sk=parameterDb.sekolah||{};if(sk.namaSekolah)sub.textContent=sk.namaSekolah+(sk.npsn?' · NPSN '+sk.npsn:'');}
+  // Simpan identitas ke key kecil khusus (agar tampil di login saat halaman dibuka)
+  try{localStorage.setItem('sibis_id',JSON.stringify({logo:logo||'',namaAplikasi:(parameterDb.sekolah&&parameterDb.sekolah.namaAplikasi)||'',namaSekolah:(parameterDb.sekolah&&parameterDb.sekolah.namaSekolah)||'',npsn:(parameterDb.sekolah&&parameterDb.sekolah.npsn)||''}));}catch(e){}
 }
 
 /* ============================================================
@@ -1217,26 +1220,28 @@ function cetakKartuGuru(id){
 }
 
 (function init(){
-  // Tampilkan logo & nama sekolah di halaman login (dari data tersimpan lokal)
   function terapkanIdentitasLogin(sk){
     if(!sk)return;
     if(sk.logo){const el=document.getElementById('loginLogoBox');if(el)el.innerHTML='<img src="'+sk.logo+'" class="w-full h-full object-contain rounded" style="background:#fff">';}
     if(sk.namaAplikasi){const el=document.getElementById('loginAppName');if(el)el.textContent=sk.namaAplikasi;}
     if(sk.namaSekolah){const el=document.getElementById('loginSubtitle');if(el)el.textContent=sk.namaSekolah+(sk.npsn?' · NPSN '+sk.npsn:'');}
   }
-  try{
-    const raw=localStorage.getItem(LS_KEY);
-    if(raw){terapkanIdentitasLogin((JSON.parse(raw).parameter&&JSON.parse(raw).parameter.sekolah)||{});}
-  }catch(e){}
-  // Fallback session via window.name (bertahan saat refresh meskipun localStorage/cookie diblokir file://)
-  let sesiWN=false;
-  try{sesiWN=(window.name||'').indexOf('sibis_session=1')>=0;}catch(e){}
-  if(EMBEDDED_GAS_URL){
-    fetch(EMBEDDED_GAS_URL,{method:'GET'}).then(r=>r.json()).then(d=>{terapkanIdentitasLogin((d.parameter&&d.parameter.sekolah)||{});}).catch(()=>{});
+  // UTAMA: baca identitas dari key kecil khusus (paling andal)
+  try{const id=localStorage.getItem('sibis_id');if(id)terapkanIdentitasLogin(JSON.parse(id));}catch(e){}
+  // Fallback: parse data besar
+  try{const raw=localStorage.getItem(LS_KEY);if(raw)terapkanIdentitasLogin((JSON.parse(raw).parameter&&JSON.parse(raw).parameter.sekolah)||{});}catch(e){}
+  // Fallback: ambil dari server (async)
+  if(EMBEDDED_GAS_URL){fetch(EMBEDDED_GAS_URL,{method:'GET'}).then(r=>r.json()).then(d=>{terapkanIdentitasLogin((d.parameter&&d.parameter.sekolah)||{});try{localStorage.setItem('sibis_id',JSON.stringify(d.parameter.sekolah||{}));}catch(e){}}).catch(()=>{});}
+  // Retry
+  setTimeout(()=>{try{const id=localStorage.getItem('sibis_id');if(id)terapkanIdentitasLogin(JSON.parse(id));}catch(e){}},800);
+  // Cek session — JIKA ADA, LANGSUNG tampilkan app (tidak menunggu loadData)
+  const sesi=localStorage.getItem('sibis_auth')==='1'||localStorage.getItem('sibis_session')==='1'||document.cookie.indexOf('sibis_session=1')>=0||(window.name||'').indexOf('sibis_session=1')>=0||location.hash.indexOf('sibis=1')>=0;
+  if(sesi){
+    const ls=document.getElementById('loginScreen'),ap=document.getElementById('app');
+    if(ls)ls.classList.add('hidden');
+    if(ap){ap.classList.remove('hidden');ap.classList.add('flex');}
+    autoLogin(); // loadData + render di background
   }
-  // Coba lagi setelah 1 detik (jika data baru saja tersimpan)
-  setTimeout(()=>{try{const raw=localStorage.getItem(LS_KEY);if(raw)terapkanIdentitasLogin((JSON.parse(raw).parameter&&JSON.parse(raw).parameter.sekolah)||{});}catch(e){}},1000);setTimeout(()=>{try{const raw=localStorage.getItem(LS_KEY);if(raw)terapkanIdentitasLogin((JSON.parse(raw).parameter&&JSON.parse(raw).parameter.sekolah)||{});}catch(e){}},2500);
-  if(localStorage.getItem('sibis_session')==='1'||document.cookie.indexOf('sibis_session=1')>=0||sesiWN||location.hash.indexOf('sibis=1')>=0){document.getElementById('loginScreen').style.display='none';autoLogin();}
 })();
 </script>
 </body>
