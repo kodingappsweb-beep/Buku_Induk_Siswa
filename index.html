@@ -252,6 +252,10 @@ function applyData(data){
   if(data.kelas)kelasDb=data.kelas;
   if(data.mapel&&data.mapel.length)mapelDb=data.mapel;
   if(data.nilai)gradeDb=data.nilai;
+  // Paksa NISN/NIK/NIS/NoHP/NIP jadi String agar nol awal tidak hilang saat simpan ulang
+  const _fs=(o,ks)=>{ks.forEach(k=>{if(o&&o[k]!==undefined&&o[k]!==null)o[k]=String(o[k]);});};
+  studentDb.forEach(s=>_fs(s,['nis','nisn','nik','noHp']));
+  guruDb.forEach(g=>_fs(g,['nip','nik','noHp']));
   if(data.parameter){
     if(data.parameter.tahunAjaran&&data.parameter.tahunAjaran.length)parameterDb.tahunAjaran=data.parameter.tahunAjaran;
     if(data.parameter.semester&&data.parameter.semester.length)parameterDb.semester=data.parameter.semester;
@@ -303,8 +307,12 @@ function saveData(){
   const payload={siswa:studentDb,guru:guruDb,kelas:kelasDb,mapel:mapelDb,nilai:gradeDb,parameter:parameterDb};
     localStorage.setItem(LS_KEY,JSON.stringify(payload));
     if(GAS_URL){
-      try{await fetch(GAS_URL,{method:'POST',body:JSON.stringify(payload)});setSync('Tersimpan');}
-      catch(e){setSync('Offline (tersimpan lokal)');}
+      try{
+        const resp=await fetch(GAS_URL,{method:'POST',body:JSON.stringify(payload)});
+        const hasil=await resp.json();
+        if(hasil&&hasil.ok===false)throw new Error(hasil.error||'Server menolak data');
+        setSync('Tersimpan');
+      }catch(e){setSync('Gagal sinkron (tersimpan lokal)');console.error('Save gagal:',e);toast('Gagal sinkron ke server: '+String(e.message||e));}
     }else setSync('Tersimpan (lokal)');
   },1200);
 }
