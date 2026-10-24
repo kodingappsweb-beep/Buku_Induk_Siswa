@@ -936,6 +936,14 @@ function rNilai(c){
         </div>
         <table class="w-full text-sm mb-4"><thead class="bg-slate-50 text-xs text-slate-500"><tr><th class="py-2 px-3 text-left w-20">Kode</th><th class="py-2 px-3 text-left">Mata Pelajaran</th><th class="py-2 px-3 text-center">Nilai (0-100)</th></tr></thead>
         <tbody>${inputRows||'<tr><td colspan="3" class="py-6 text-center text-slate-400">Tidak ada mapel aktif untuk kelas ini.</td></tr>'}</tbody></table>
+        <div class="bg-slate-50 rounded-lg p-3 mb-4">
+          <div class="text-xs font-semibold text-slate-600 uppercase mb-2"><i class="fa-solid fa-clipboard-user mr-1"></i>Kehadiran (jumlah hari)</div>
+          <div class="grid grid-cols-3 gap-3">
+            <div><label class="block text-xs text-slate-500 mb-1">Sakit</label><input type="number" min="0" data-hadir="sakit" value="${nilai._sakit??''}" placeholder="0" class="hadirInp w-full px-2 py-1.5 border border-slate-300 rounded text-sm text-center outline-none focus:ring-2 focus:ring-blue-500"></div>
+            <div><label class="block text-xs text-slate-500 mb-1">Izin</label><input type="number" min="0" data-hadir="izin" value="${nilai._izin??''}" placeholder="0" class="hadirInp w-full px-2 py-1.5 border border-slate-300 rounded text-sm text-center outline-none focus:ring-2 focus:ring-blue-500"></div>
+            <div><label class="block text-xs text-slate-500 mb-1">Alfa</label><input type="number" min="0" data-hadir="alfa" value="${nilai._alfa??''}" placeholder="0" class="hadirInp w-full px-2 py-1.5 border border-slate-300 rounded text-sm text-center outline-none focus:ring-2 focus:ring-blue-500"></div>
+          </div>
+        </div>
         <div class="flex items-center justify-between">
           <div class="text-sm">Rata-rata: <span class="font-bold text-lg text-blue-600">${rata?rata.toFixed(1):'-'}</span></div>
           <button onclick="simpanNilai('${siswa.nis}')" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-semibold flex items-center gap-2"><i class="fa-solid fa-save"></i>Simpan Nilai</button>
@@ -958,6 +966,7 @@ function simpanNilai(nis){
   const key=nis+'_'+nilaiState.semester;
   const obj={};let ada=false;
   document.querySelectorAll('.nilaiInp').forEach(inp=>{const val=inp.value.trim();if(val!==''){obj[inp.dataset.kode]=Number(val);ada=true;}});
+  document.querySelectorAll('.hadirInp').forEach(inp=>{const val=inp.value.trim();if(val!==''){obj['_'+inp.dataset.hadir]=Number(val);ada=true;}});
   if(ada)gradeDb[key]=obj;else delete gradeDb[key];
   saveData();toast('Nilai tersimpan.');rNilai(document.getElementById('pageContent'));
 }
@@ -966,6 +975,10 @@ function cetakRapor(){
   const mapels=mapelAktifUntukKelas(siswa.kelasAktifId);
   const key=siswa.nis+'_'+nilaiState.semester;const nilai=gradeDb[key]||{};
   const s=parameterDb.sekolah||{};
+  const kelasSiswa=kelasDb.find(k=>k.id===siswa.kelasAktifId)||{};
+  const waliKelas=guruDb.find(g=>g.id===kelasSiswa.waliKelasId)||{};
+  const namaWali=waliKelas.nama||'____________________';
+  const nipWali=waliKelas.nip||'';
   const rows=mapels.map(m=>`<tr><td class="py-1.5 px-3">${m.nama}</td><td class="py-1.5 px-3 text-center font-semibold">${nilai[m.kode]??'-'}</td></tr>`).join('');
   const rata=mapels.length?(mapels.reduce((a,m)=>a+(Number(nilai[m.kode])||0),0)/mapels.filter(m=>nilai[m.kode]!=null).length||0):0;
   const w=window.open('','_blank');
@@ -975,8 +988,15 @@ function cetakRapor(){
     <h3 style="text-align:center;text-transform:uppercase">Laporan Hasil Belajar</h3>
     <p>Nama: <b>${siswa.nama}</b> &nbsp; NIS: ${siswa.nis||'-'} &nbsp; Kelas: ${namaKelas(siswa.kelasAktifId)}<br>Tahun Pelajaran ${activeFilters.tahunAjaran} · Semester ${nilaiState.semester}</p>
     <table><thead><tr><th>Mata Pelajaran</th><th style="width:80px">Nilai</th></tr></thead><tbody>${rows}</tbody>
-    <tr><td><b>Rata-rata</b></td><td style="text-align:center"><b>${rata?rata.toFixed(2):'-'}</b></td></tr></table>
-    <p style="margin-top:40px;text-align:right">Mengetahui,<br>Wali Kelas<br><br><br><u>____________________</u><br><br><br>Kepala Sekolah<br><br><br><u>${s.kepalaSekolah||'____________________'}</u><br>NIP. ${s.nipKepalaSekolah||'-'}</p>
+    <tr><td><b>Rata-rata</b></td><td style="text-align:center"><b>${rata?rata.toFixed(2):'-'}</b></td></tr>
+    <tr><td colspan="2" style="background:#eee;font-weight:bold;text-align:center">KEHADIRAN</td></tr>
+    <tr><td>Sakit</td><td style="text-align:center">${nilai._sakit??0} hari</td></tr>
+    <tr><td>Izin</td><td style="text-align:center">${nilai._izin??0} hari</td></tr>
+    <tr><td>Alfa (Tanpa Keterangan)</td><td style="text-align:center">${nilai._alfa??0} hari</td></tr></table>
+    <table style="width:100%;margin-top:40px;border:none"><tr>
+      <td style="text-align:center;border:none;width:50%;vertical-align:top">Kepala Sekolah<br><br><br><br><u>${s.kepalaSekolah||'____________________'}</u><br>NIP. ${s.nipKepalaSekolah||'-'}</td>
+      <td style="text-align:center;border:none;width:50%;vertical-align:top">Mengetahui,<br>Wali Kelas<br><br><br><br><u>${namaWali}</u>${nipWali?'<br>NIP. '+nipWali:''}</td>
+    </tr></table>
     <script>window.print();<\/script></body></html>`);
   w.document.close();
 }
