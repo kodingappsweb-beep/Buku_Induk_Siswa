@@ -49,13 +49,20 @@
   .rekap-guru th{background:#eee!important;font-weight:bold}
   .biodata-siswa{overflow:hidden}
 
+  @page{margin:1.2cm}
   @media print{
-    html,body{background:#fff!important;color:#000!important;font-size:12pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    html,body{background:#fff!important;color:#000!important;font-size:12pt;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .no-print{display:none!important}
-    body.mode-print main, body.mode-print #loginScreen{display:none!important}
-    #printContainer{display:block!important}
-    aside,.sidebar,.konten,main,header.app-header{background:#fff!important;color:#000!important;box-shadow:none!important}
-    .print-area{display:block!important;position:absolute;left:0;top:0;width:100%;margin:0;padding:1.5cm;background:#fff!important;box-shadow:none!important;color:#000!important}
+    body.mode-print main, body.mode-print #loginScreen, body.mode-print aside, body.mode-print .sidebar, body.mode-print header.app-header, body.mode-print .konten, body.mode-print .app-header{display:none!important}
+    body.mode-print{margin:0!important;padding:0!important}
+    body.mode-print > *:not(#printContainer){display:none!important}
+    #printContainer{display:block!important;position:static!important;margin:0!important;padding:0!important}
+    #printContainer [class*="max-w-"]{max-width:100%!important}
+    #printContainer .mx-auto{margin-left:0!important;margin-right:0!important}
+    #printContainer table{table-layout:auto!important}
+    aside,.sidebar,header.app-header{display:none!important}
+    .konten,main{background:#fff!important;color:#000!important;box-shadow:none!important;margin-left:0!important;margin-right:0!important;width:100%!important;max-width:100%!important;padding:0!important}
+    .print-area{display:block!important;position:static!important;left:auto;top:auto;width:100%;margin:0!important;background:#fff!important;box-shadow:none!important;color:#000!important}
     .logo-box,.foto-print,.kop-logo{background:#fff!important;padding:4px}
     .page-break{page-break-before:always}
     table{width:100%!important;border-collapse:collapse!important;background:#fff!important}
@@ -982,7 +989,7 @@ function cetakRapor(){
   const rows=mapels.map(m=>`<tr><td class="py-1.5 px-3">${m.nama}</td><td class="py-1.5 px-3 text-center font-semibold">${nilai[m.kode]??'-'}</td></tr>`).join('');
   const rata=mapels.length?(mapels.reduce((a,m)=>a+(Number(nilai[m.kode])||0),0)/mapels.filter(m=>nilai[m.kode]!=null).length||0):0;
   const w=window.open('','_blank');
-  w.document.write(`<html><head><title>Rapor ${siswa.nama}</title><style>body{font-family:Arial,sans-serif;padding:2cm;color:#000}table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:8px;font-size:11pt}th{background:#eee}.kop{text-align:center;margin-bottom:20px}.logo{background:#fff;padding:4px;display:inline-block}</style></head><body>
+  w.document.write(`<html><head><title>Rapor ${siswa.nama}</title><style>body{font-family:Arial,sans-serif;padding:1.5cm;color:#000}table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:8px;font-size:11pt}th{background:#eee}.kop{text-align:center;margin-bottom:20px}.logo{background:#fff;padding:4px;display:inline-block}</style></head><body>
     <div class="kop"><div class="logo">${s.logo?`<img src="${s.logo}" style="width:70px;height:70px;object-fit:contain">`:'<div style="width:70px;height:70px;background:#eee"></div>'}</div>
     <div style="font-weight:bold;font-size:14pt">${s.namaSekolah||'Sekolah'}</div><div style="font-size:9pt">${s.alamat||''} · NPSN ${s.npsn||'-'}</div></div>
     <h3 style="text-align:center;text-transform:uppercase">Laporan Hasil Belajar</h3>
@@ -993,7 +1000,7 @@ function cetakRapor(){
     <tr><td>Sakit</td><td style="text-align:center">${nilai._sakit??0} hari</td></tr>
     <tr><td>Izin</td><td style="text-align:center">${nilai._izin??0} hari</td></tr>
     <tr><td>Alfa (Tanpa Keterangan)</td><td style="text-align:center">${nilai._alfa??0} hari</td></tr></table>
-    <table style="width:100%;margin-top:40px;border:none"><tr>
+    <table style="width:100%;margin-top:30px;border:none;page-break-inside:avoid"><tr>
       <td style="text-align:center;border:none;width:50%;vertical-align:top">Kepala Sekolah<br><br><br><br><u>${s.kepalaSekolah||'____________________'}</u><br>NIP. ${s.nipKepalaSekolah||'-'}</td>
       <td style="text-align:center;border:none;width:50%;vertical-align:top">Mengetahui,<br>Wali Kelas<br><br><br><br><u>${namaWali}</u>${nipWali?'<br>NIP. '+nipWali:''}</td>
     </tr></table>
